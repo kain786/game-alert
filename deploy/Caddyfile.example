@@ -1,0 +1,9 @@
+# Add ONLY this site block to the recipient's existing Caddyfile.
+# Change the domain, username, hash and port as needed.
+# Generate a password hash interactively: caddy hash-password
+games.example.com {
+    basic_auth {
+        owner REPLACE_WITH_CADDY_PASSWORD_HASH
+    }
+    reverse_proxy 127.0.0.1:18136
+}

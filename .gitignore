@@ -1,0 +1,9 @@
+.env
+.discord.env
+.venv/
+data/
+dist/
+verification/
+__pycache__/
+*.pyc
+.DS_Store

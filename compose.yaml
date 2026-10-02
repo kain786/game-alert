@@ -1,0 +1,44 @@
+name: game-alert
+x-runtime: &runtime
+  image: game-alert-distribution:1.0.0
+  build: .
+  init: true
+  restart: unless-stopped
+  user: "1000:1000"
+  read_only: true
+  tmpfs: [/tmp:rw,noexec,nosuid,size=64m,mode=1777]
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  pids_limit: 96
+  mem_limit: 256m
+  environment: &environment
+    TZ: Asia/Seoul
+    GEVENT_CACHE_DIR: /data
+    PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:?Set PUBLIC_BASE_URL in .env}
+    NOTIFICATIONS_ENABLED: ${NOTIFICATIONS_ENABLED:-false}
+    REFRESH_INTERVAL_SECONDS: ${REFRESH_INTERVAL_SECONDS:-21600}
+    NOTIFY_INTERVAL_SECONDS: ${NOTIFY_INTERVAL_SECONDS:-600}
+    SCHEDULE_CACHE_TTL_SECONDS: ${SCHEDULE_CACHE_TTL_SECONDS:-21600}
+  volumes: [schedule-data:/data]
+  stop_grace_period: 240s
+  logging:
+    driver: json-file
+    options: {max-size: "10m", max-file: "3"}
+services:
+  web:
+    <<: *runtime
+    ports: ["127.0.0.1:${WEB_PORT:-18136}:8080"]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; assert urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3).read() == b'ok'"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  collector:
+    <<: *runtime
+    command: [python, worker.py, collector]
+  notifier:
+    <<: *runtime
+    env_file: [.discord.env]
+    command: [python, worker.py, notifier]
+volumes:
+  schedule-data:

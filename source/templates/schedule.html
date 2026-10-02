@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>게임알리미</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='schedule.css', v=release) }}">
+<script src="{{ url_for('static', filename='schedule.js', v=release) }}" defer></script>
+</head>
+<body>
+<main class="wrap">
+<header class="hero">
+<div class="kicker">game schedule</div><h1>게임 일정</h1>
+<p>원신 · 젠레스 · 스타레일의 픽업과 공식 방송을 확인하세요. 방송 시각은 한국 시간으로 표시합니다.</p>
+<form class="filters" method="get" action="/">
+<label for="game">게임 선택</label><select id="game" name="game">
+<option value="">전체 게임</option>{% for id, name in game_names.items() %}<option value="{{ id }}" {% if selected_game == id %}selected{% endif %}>{{ name }}</option>{% endfor %}
+</select><button class="btn secondary" type="submit">보기</button>
+<a class="btn secondary" href="/calendar.ics{% if selected_game %}?game={{ selected_game }}{% endif %}">캘린더 받기</a>
+<button class="btn" type="button" id="refresh-button">일정 갱신</button>
+</form>
+<p id="refresh-feedback" class="status-line" role="status" aria-live="polite">{% if refresh.state == 'running' %}일정을 갱신하고 있습니다.{% else %}오늘 {{ today }} · KST{% endif %}</p>
+{% if degraded %}<p class="warning" role="status">일부 자료가 오래되었거나 수집에 실패했습니다. 마지막으로 확인된 일정을 표시합니다.</p>{% endif %}
+<details class="sources"><summary>출처와 마지막 정상 갱신</summary><ul>{% for source in sources %}
+<li><a href="{{ source.source_url }}" target="_blank" rel="noopener noreferrer">{{ source.game }} {{ source.kind }}</a> · {{ source.last_success }}{% if source.stale %} · 확인 필요{% endif %}{% if source.error %} · {{ source.error }}{% endif %}</li>
+{% endfor %}</ul><p>위키에 등록된 일정이며 실제 일정은 원문 공지를 확인하세요. 종료일만 알려진 픽업은 정확한 마감 시각을 원문에서 확인해야 합니다.</p></details>
+<noscript><p>게임 선택과 캘린더 받기는 사용할 수 있습니다. 수동 갱신에는 JavaScript가 필요합니다.</p></noscript>
+</header>
+{% macro rows(items, empty_text) %}
+<div class="list">
+{% for item in items %}
+<article class="row">
+<div class="date"><span class="date-top"><span class="badge {% if item.kind == 'broadcast' %}live{% else %}up{% endif %}">{{ item.kind_label }}</span>{% if item.time %}<span class="time">{{ item.time }} {{ item.tz }}</span>{% endif %}</span>
+<span class="date-bottom">{% if item.update_date %}<time datetime="{{ item.update_date }}">{{ item.update_date }}</time> ({{ item.weekday }}){% else %}날짜 미정{% endif %}</span>
+{% if item.dday %}<span class="muted">{{ item.dday }}</span>{% endif %}</div>
+<div class="game-cell"><span class="icon"><img src="{{ icons[item.game_id] }}" alt="" width="28" height="28" loading="lazy"></span><span class="game">{{ item.game }}</span></div>
+<div class="ver">{{ item.version }}</div>
+<div class="pick">{% if item.pickup_characters %}{{ item.pickup_characters | join(', ') }}<br>{% endif %}
+<span>{{ item.status }}</span>{% if item.end_date %} · 종료일 <time datetime="{{ item.end_date }}">{{ item.end_date }}</time>{% endif %}
+<br><a href="{{ item.source_url }}" target="_blank" rel="noopener noreferrer">원문 보기<span class="sr-only">: {{ item.game }} {{ item.version }} {{ item.kind_label }} (새 창)</span></a>
+{% if item.stale %}<span class="muted"> · 갱신 확인 필요</span>{% endif %}</div>
+</article>
+{% else %}<p class="empty">{{ empty_text }}</p>{% endfor %}</div>
+{% endmacro %}
+<section class="section today" aria-labelledby="today-title"><div class="section-head"><h2 id="today-title">오늘 일정</h2><span class="hint">{{ today }}</span></div>{{ rows(today_items, '오늘 등록된 일정이 없습니다.') }}</section>
+{% if ongoing %}<section class="section" aria-labelledby="ongoing-title"><div class="section-head"><h2 id="ongoing-title">진행 중인 픽업</h2><span class="hint">종료일 기준</span></div>{{ rows(ongoing, '') }}</section>{% endif %}
+<section class="section" aria-labelledby="upcoming-title"><div class="section-head"><h2 id="upcoming-title">다가오는 일정</h2><span class="hint">가까운 날짜부터</span></div>{{ rows(upcoming, '현재 확인된 예정 일정이 없습니다.') }}</section>
+<details class="section"><summary>지난 일정 · {{ past | length }}개</summary>{{ rows(past, '지난 일정이 없습니다.') }}</details>
+<footer class="foot">방송 시간대가 확인되지 않으면 원본 시각과 ‘시간대 미확인’을 표시합니다. <a href="/calendar.ics{% if selected_game %}?game={{ selected_game }}{% endif %}">캘린더 파일</a>에는 확인된 일정만 포함됩니다.</footer>
+</main></body></html>
